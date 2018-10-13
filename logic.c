@@ -15,6 +15,7 @@ enum op_type {
     OP_MUTIMPLY,
     OP_COUNT,
     OP_VAR,
+    OP_VAR_END = OP_VAR + 26,
     OP_INVALID = 0xff
 };
 
@@ -48,7 +49,7 @@ void dump_tokens(FILE *f, token_list list)
         case OP_IMPLY: fprintf(f, " → "); break;
         case OP_MUTIMPLY: fprintf(f, " ↔ "); break;
         default:
-            if (*list >= OP_VAR && *list < OP_VAR + 26) {
+            if (*list >= OP_VAR && *list < OP_VAR_END) {
                 fputc('A' + (*list - OP_VAR), f);
             } else {
                 fputc('?', f);
