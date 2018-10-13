@@ -37,6 +37,26 @@ void ensure_sane(const char *subroutine, const char *input, int pos, const char 
     }
 }
 
+void dump_tokens(FILE *f, token_list list)
+{
+    for (; *list != OP_INVALID; ++list) switch (*list) {
+        case OP_LBRACKET: fputc('(', f); break;
+        case OP_RBRACKET: fputc(')', f); break;
+        case OP_NOT: fprintf(f, "¬"); break;
+        case OP_AND: fprintf(f, " ∧ "); break;
+        case OP_OR: fprintf(f, " ∨ "); break;
+        case OP_IMPLY: fprintf(f, " → "); break;
+        case OP_MUTIMPLY: fprintf(f, " ↔ "); break;
+        default:
+            if (*list >= OP_VAR && *list < OP_VAR + 26) {
+                fputc('A' + (*list - OP_VAR), f);
+            } else {
+                fputc('?', f);
+            }
+    }
+    fputc('\n', f);
+}
+
 token_list tokenize(const char *s, int *pos, const char **msg)
 {
     int sz = 0, cap = 6;
@@ -112,6 +132,7 @@ int main()
 
     token_list tokens = tokenize(s, &err_pos, &err_msg);
     ensure_sane("Tokenizer", s, err_pos, err_msg);
+    dump_tokens(stdout, tokens);
 
     token_list sfx_expr = sfx_expr_build(tokens);
     struct expr_tree_node *root = expr_tree_build(sfx_expr);
