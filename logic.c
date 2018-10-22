@@ -34,6 +34,10 @@ struct expr_tree_node *expr_tree_node_create(
     return ret;
 }
 
+/*
+ * Ensures that the error info returned implies no error,
+ * or exits the program with code 1 otherwise.
+ */
 void ensure_sane(const char *input, int pos, const char *msg)
 {
     if (pos != -1) {
@@ -76,6 +80,11 @@ int dump_tokens(char *s, enum op_type *list)
     return w;
 }
 
+/*
+ * Evaluates an expression tree with variables'
+ * respective values stored in the bit vector `vars`.
+ * Uses short-circuit evaluation.
+ */
 _Bool expr_tree_eval(struct expr_tree_node *u, int vars)
 {
     switch (u->op) {
@@ -98,6 +107,16 @@ _Bool expr_tree_eval(struct expr_tree_node *u, int vars)
     }
 }
 
+/*
+ * Parses an expression and generate related information.
+ * `tokens`: a list of tokens used for further display.
+ * `tree_root`: a pointer to the root of the expression tree.
+ * `var_mask`: a bit vector indicating
+ *             whether each letter occurs in the expression.
+ * In case of errors, `pos` and `msg` are populated
+ * with the position of error in the expression and an
+ * error message, respectively.
+ */
 void expr_parse(const char *s,
     int *pos, const char **msg,
     enum op_type **tokens, struct expr_tree_node **tree_root, int *var_mask)
@@ -152,11 +171,13 @@ void expr_parse(const char *s,
 
         /* (1) Pop */
         if (!is_var && cur_op != OP_LBRACKET) {
+            /* < for right associative operators; <= for left */
             while (stk_top > 0 && stk[stk_top - 1] < cur_op + !is_rightassoc) {
                 enum op_type last_op = stk[--stk_top];
                 int arity =
                     (last_op == OP_LBRACKET || last_op == OP_RBRACKET ? 0 :
                     (last_op == OP_NOT ? 1 : 2));
+                /* Pop `arity` subtrees and build a new tree node */
                 if (sfx_top < arity) {
                     *pos = i;
                     *msg = "Missing operand";
@@ -170,6 +191,7 @@ void expr_parse(const char *s,
                 sfx[sfx_top++] = u;
             }
         }
+        /* Closing bracket needs another pop for the opening one */
         if (cur_op == OP_RBRACKET) {
             if (stk_top < 1 || stk[stk_top - 1] != OP_LBRACKET) {
                 *pos = i;
@@ -240,7 +262,10 @@ int main()
     for (i = 0; i < 26; ++i)
         if (var_mask & (1 << i)) printf("| %c ", 'A' + i);
     printf("| %s |\n", expr_str);
+    /* Iterate through all subsets of `var_mask` */
     for (vars = var_mask; ; vars = (vars - 1) & var_mask) {
+        /* As we're iterating `vars` from largest to smallest,
+         * `var_mask ^ vars` goes from smallest to largest */
         _Bool result = expr_tree_eval(root, (var_mask ^ vars) | special);
         for (i = var_mask; i > 0; i -= (i & -i))
             printf("| %c ", !(vars & ((i & -i))) ? 'T' : 'F');
