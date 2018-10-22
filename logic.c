@@ -47,36 +47,33 @@ void ensure_sane(const char *input, int pos, const char *msg)
     }
 }
 
-void dump_tokens(FILE *f, enum op_type *list)
+/*
+ * For the sake of simplicity, this function assumes
+ * that there is sufficient memory allocated at `s`.
+ * 4 times the input length will always work, though
+ * a tighter lower bound exists.
+ * Returns the actual displayed width in characters.
+ */
+int dump_tokens(char *s, enum op_type *list)
 {
+    int w = 0;
     for (; *list != OP_INVALID; ++list) switch (*list) {
-        case OP_LBRACKET: fputc('(', f); break;
-        case OP_RBRACKET: fputc(')', f); break;
-        case OP_NOT: fprintf(f, "¬"); break;
-        case OP_AND: fprintf(f, " ∧ "); break;
-        case OP_OR: fprintf(f, " ∨ "); break;
-        case OP_IMPLY: fprintf(f, " → "); break;
-        case OP_MUTIMPLY: fprintf(f, " ↔ "); break;
+        case OP_LBRACKET: *(s++) = '('; ++w; break;
+        case OP_RBRACKET: *(s++) = ')'; ++w; break;
+        case OP_NOT: s = stpcpy(s, "¬"); ++w; break;
+        case OP_AND: s = stpcpy(s, " ∧ "); w += 3; break;
+        case OP_OR: s = stpcpy(s, " ∨ "); w += 3; break;
+        case OP_IMPLY: s = stpcpy(s, " → "); w += 3; break;
+        case OP_MUTIMPLY: s = stpcpy(s, " ↔ "); w += 3; break;
         default:
             if (*list >= OP_VAR && *list < OP_VAR_END) {
-                fputc('A' + (*list - OP_VAR), f);
+                *(s++) = 'A' + (*list - OP_VAR);
             } else {
-                fputc('?', f);
+                *(s++) = '?';
             }
+            ++w;
     }
-    fputc('\n', f);
-}
-
-void dump_expr_tree(FILE *f, struct expr_tree_node *root)
-{
-    if (root == NULL) return;
-    fputc('[', f);
-    dump_expr_tree(f, root->lch);
-    fputc(']', f);
-    fputc('[', f);
-    dump_expr_tree(f, root->rch);
-    fputc(']', f);
-    printf(" %d", root->op);
+    return w;
 }
 
 _Bool expr_tree_eval(struct expr_tree_node *u, int vars)
@@ -223,17 +220,29 @@ int main()
 
     expr_parse(s, &err_pos, &err_msg, &tokens, &root, &var_mask);
     ensure_sane(s, err_pos, err_msg);
-    dump_tokens(stdout, tokens);
+
+    char *expr_str = (char *)malloc(len * 4);
+    if (expr_str == NULL) {
+        fputs("Insufficient memory [ENOMEM]\n", stderr);
+        return 1;
+    }
+    int expr_str_len = dump_tokens(expr_str, tokens);
+    int rspace = (expr_str_len - 1) >> 1,
+        lspace = (expr_str_len - 1) - rspace;
 
     int i, vars;
     for (i = 0; i < 26; ++i)
         if (var_mask & (1 << i)) printf("| %c ", 'A' + i);
-    printf("| = |\n");
+    printf("| %s |\n", expr_str);
     for (vars = var_mask; ; vars = (vars - 1) & var_mask) {
         _Bool result = expr_tree_eval(root, var_mask ^ vars);
         for (i = var_mask; i > 0; i -= (i & -i))
             printf("| %c ", !(vars & ((i & -i))) ? 'T' : 'F');
-        printf("| %c |\n", result ? 'T' : 'F');
+        putchar('|');
+        for (i = 0; i <= lspace; ++i) putchar(' ');
+        putchar(result ? 'T' : 'F');
+        for (i = 0; i <= rspace; ++i) putchar(' ');
+        printf("|\n");
         if (vars == 0) break;
     }
 
