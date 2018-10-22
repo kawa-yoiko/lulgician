@@ -56,20 +56,28 @@ void dump_tokens(FILE *f, enum op_type *list)
     fputc('\n', f);
 }
 
-void tokenize(const char *s,
+void expr_parse(const char *s,
     int *pos, const char **msg,
     enum op_type **tokens, struct expr_tree_node **tree_root)
 {
-    int sz = 0, len = strlen(s);
-    enum op_type *tok = (enum op_type *)malloc((len + 1) * sizeof tok[0]);
-    if (tok == NULL) {
+    /* Maybe we shall assert? */
+    if (!s || !pos || !msg || !tokens || !tree_root) return;
+
+    int expr_len = strlen(s);
+    enum op_type *tok = (enum op_type *)malloc((expr_len + 1) * sizeof tok[0]);
+    enum op_type *stk = (enum op_type *)malloc(expr_len * sizeof tok[0]);
+    struct expr_tree_node **sfx =
+        (struct expr_tree_node **)malloc(expr_len * sizeof sfx[0]);
+    if (tok == NULL || stk == NULL || sfx == NULL) {
         *pos = 0;
         *msg = "Insufficient memory [ENOMEM]";
         free(tok);
         return;
     }
 
+    int tok_sz = 0, stk_top = 0, sfx_top = 0;
     int i;
+
     for (i = 0; s[i] != '\0'; ++i) if (!isspace(s[i])) {
         enum op_type cur_op = OP_INVALID;
         switch (s[i]) {
@@ -89,15 +97,15 @@ void tokenize(const char *s,
             free(tok);
             return;
         }
-        tok[sz++] = cur_op;
+        tok[tok_sz++] = cur_op;
     }
-    if (sz == 0) {
+    if (tok_sz == 0) {
         *pos = 0;
         *msg = "Empty expression";
         free(tok);
         return;
     }
-    tok[sz++] = OP_INVALID;
+    tok[tok_sz++] = OP_INVALID;
     *pos = -1;
     *msg = "Success";
     *tokens = tok;
@@ -112,11 +120,9 @@ int main()
 
     int err_pos;
     const char *err_msg;
-    int list_len;
-
     enum op_type *tokens;
     struct expr_tree_node *root;
-    tokenize(s, &err_pos, &err_msg, &tokens, &root);
+    expr_parse(s, &err_pos, &err_msg, &tokens, &root);
     ensure_sane(s, err_pos, err_msg);
     dump_tokens(stdout, tokens);
 
