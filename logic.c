@@ -79,9 +79,31 @@ void dump_expr_tree(FILE *f, struct expr_tree_node *root)
     printf(" %d", root->op);
 }
 
+_Bool expr_tree_eval(struct expr_tree_node *u, int vars)
+{
+    switch (u->op) {
+    case OP_NOT:
+        return !expr_tree_eval(u->lch, vars);
+    case OP_AND:
+        return expr_tree_eval(u->lch, vars) && expr_tree_eval(u->rch, vars);
+    case OP_OR:
+        return expr_tree_eval(u->lch, vars) || expr_tree_eval(u->rch, vars);
+    case OP_IMPLY:
+        return !expr_tree_eval(u->lch, vars) || expr_tree_eval(u->rch, vars);
+    case OP_MUTIMPLY:
+        return expr_tree_eval(u->lch, vars) == expr_tree_eval(u->rch, vars);
+    default:
+        if (u->op >= OP_VAR && u->op < OP_VAR_END) {
+            return (vars >> (u->op - OP_VAR)) & 1;
+        } else {
+            return 0;
+        }
+    }
+}
+
 void expr_parse(const char *s,
     int *pos, const char **msg,
-    enum op_type **tokens, struct expr_tree_node **tree_root)
+    enum op_type **tokens, struct expr_tree_node **tree_root, int *var_mask)
 {
     /* Maybe we shall assert? */
     if (!s || !pos || !msg || !tokens || !tree_root) return;
@@ -101,7 +123,7 @@ void expr_parse(const char *s,
         return;
     }
 
-    int tok_sz = 0, stk_top = 0, sfx_top = 0;
+    int tok_sz = 0, stk_top = 0, sfx_top = 0, vmask = 0;
     int i;
 
     for (i = 0; ; ++i) if (s[i] == '\0' || !isspace(s[i])) {
@@ -166,11 +188,12 @@ void expr_parse(const char *s,
             stk[stk_top++] = cur_op;
         } else if (is_var) {
             sfx[sfx_top++] = expr_tree_node_create(cur_op, NULL, NULL);
+            vmask |= (1 << (cur_op - OP_VAR));
         }
 
         if (s[i] == '\0') break;
     }
-    dump_expr_tree(stdout, sfx[0]); putchar('\n');
+
     if (tok_sz == 1) {
         /* Exit if OP_INVALID is the only token */
         *pos = 0;
@@ -181,6 +204,8 @@ void expr_parse(const char *s,
     *pos = -1;
     *msg = "Success";
     *tokens = tok;
+    *tree_root = sfx[0];
+    *var_mask = vmask;
 }
 
 int main()
@@ -194,9 +219,23 @@ int main()
     const char *err_msg;
     enum op_type *tokens;
     struct expr_tree_node *root;
-    expr_parse(s, &err_pos, &err_msg, &tokens, &root);
+    int var_mask;
+
+    expr_parse(s, &err_pos, &err_msg, &tokens, &root, &var_mask);
     ensure_sane(s, err_pos, err_msg);
     dump_tokens(stdout, tokens);
+
+    int i, vars;
+    for (i = 0; i < 26; ++i)
+        if (var_mask & (1 << i)) printf("| %c ", 'A' + i);
+    printf("| = |\n");
+    for (vars = var_mask; ; vars = (vars - 1) & var_mask) {
+        _Bool result = expr_tree_eval(root, var_mask ^ vars);
+        for (i = var_mask; i > 0; i -= (i & -i))
+            printf("| %c ", !(vars & ((i & -i))) ? 'T' : 'F');
+        printf("| %c |\n", result ? 'T' : 'F');
+        if (vars == 0) break;
+    }
 
     return 0;
 }
