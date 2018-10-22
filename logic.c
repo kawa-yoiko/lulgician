@@ -143,6 +143,7 @@ void expr_parse(const char *s,
 
     int tok_sz = 0, stk_top = 0, sfx_top = 0, vmask = 0;
     int i;
+    _Bool following_var = 0, following_lbracket = 0;
 
     for (i = 0; ; ++i) if (s[i] == '\0' || !isspace(s[i])) {
         /* Parse current token */
@@ -162,9 +163,28 @@ void expr_parse(const char *s,
             *pos = i;
             *msg = "Invalid character";
             free(tok); free(stk); free(sfx);
+            free(stk_pos); free(sfx_pos);
             return;
         }
         tok[tok_sz++] = cur_op;
+
+        /* XXX: Is there a way to check these in the tree building process? */
+        if (following_var && cur_op == OP_LBRACKET) {
+            *pos = i;
+            *msg = "Unexpected opening bracket";
+            free(tok); free(stk); free(sfx);
+            free(stk_pos); free(sfx_pos);
+            return;
+        }
+        if (following_lbracket && cur_op == OP_RBRACKET) {
+            *pos = i;
+            *msg = "Isolated bracket pair";
+            free(tok); free(stk); free(sfx);
+            free(stk_pos); free(sfx_pos);
+            return;
+        }
+        following_var = (cur_op >= OP_VAR && cur_op < OP_VAR_END);
+        following_lbracket = (cur_op == OP_LBRACKET);
 
         /* Manipulate the stack */
         _Bool is_var = (cur_op >= OP_VAR && cur_op < OP_VAR_END);
@@ -177,6 +197,13 @@ void expr_parse(const char *s,
             while (stk_top > 0 && stk[stk_top - 1] < cur_op + !is_rightassoc) {
                 enum op_type last_op = stk[--stk_top];
                 int last_op_pos = stk_pos[stk_top];
+                /* This happens only at the very last round of popping */
+                if (last_op == OP_LBRACKET && cur_op != OP_RBRACKET) {
+                    *pos = last_op_pos;
+                    *msg = "Unexpected or unbalanced bracket";
+                    free(tok); free(stk); free(sfx);
+                    return;
+                }
                 int arity =
                     (last_op == OP_LBRACKET || last_op == OP_RBRACKET ? 0 :
                     (last_op == OP_NOT ? 1 : 2));
@@ -185,6 +212,7 @@ void expr_parse(const char *s,
                     *pos = last_op_pos;
                     *msg = "Missing operand";
                     free(tok); free(stk); free(sfx);
+                    free(stk_pos); free(sfx_pos);
                     return;
                 }
                 struct expr_tree_node *u =
@@ -201,6 +229,7 @@ void expr_parse(const char *s,
                 *pos = i;
                 *msg = "Unbalanced bracket";
                 free(tok); free(stk); free(sfx);
+                free(stk_pos); free(sfx_pos);
                 return;
             }
             --stk_top;
@@ -223,13 +252,15 @@ void expr_parse(const char *s,
         *pos = expr_len;
         *msg = "Empty expression";
         free(tok); free(stk); free(sfx);
+        free(stk_pos); free(sfx_pos);
         return;
     }
-    if (sfx_top > 1 || sfx[0]->op == OP_LBRACKET) {
+    /* XXX: Should this be moved to the tokenization stage? */
+    if (sfx_top > 1) {
         *pos = sfx_pos[1];
-        *msg = (sfx[0]->op == OP_LBRACKET ?
-            "Unbalanced bracket" : "Redundant elements");
+        *msg = "Redundant variable occurrence";
         free(tok); free(stk); free(sfx);
+        free(stk_pos); free(sfx_pos);
         return;
     }
     *pos = -1;
@@ -237,6 +268,7 @@ void expr_parse(const char *s,
     *tokens = tok;
     *tree_root = sfx[0];
     *var_mask = vmask;
+    free(stk_pos); free(sfx_pos);
 }
 
 int main()
