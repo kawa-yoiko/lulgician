@@ -6,7 +6,6 @@
 #define EXPR_LEN_LIM    1024
 
 enum op_type {
-    OP_LBRACKET = -2,
     OP_RBRACKET = -1,
     OP_NOT = 0,
     OP_AND,
@@ -14,19 +13,18 @@ enum op_type {
     OP_IMPLY,
     OP_MUTIMPLY,
     OP_COUNT,
+    OP_LBRACKET,
     OP_VAR,
     OP_VAR_END = OP_VAR + 26,
     OP_INVALID = 0xff
 };
-
-typedef enum op_type *token_list;
 
 struct expr_tree_node {
     enum op_type op;
     struct expr_tree_node *lch, *rch;
 };
 
-void ensure_sane(const char *subroutine, const char *input, int pos, const char *msg)
+void ensure_sane(const char *input, int pos, const char *msg)
 {
     if (pos != -1) {
         puts(input);
@@ -34,11 +32,11 @@ void ensure_sane(const char *subroutine, const char *input, int pos, const char 
         for (int i = 0; i < pos; ++i) putchar(' ');
         putchar('^');
         putchar('\n');
-        printf("%s | %s\n", subroutine, msg);
+        printf("%s\n", msg);
     }
 }
 
-void dump_tokens(FILE *f, token_list list)
+void dump_tokens(FILE *f, enum op_type *list)
 {
     for (; *list != OP_INVALID; ++list) switch (*list) {
         case OP_LBRACKET: fputc('(', f); break;
@@ -58,15 +56,17 @@ void dump_tokens(FILE *f, token_list list)
     fputc('\n', f);
 }
 
-token_list tokenize(const char *s, int *pos, const char **msg)
+void tokenize(const char *s,
+    int *pos, const char **msg,
+    enum op_type **tokens, struct expr_tree_node **tree_root)
 {
-    int sz = 0, cap = 6;
-    token_list ret = (token_list)malloc(cap * sizeof ret[0]);
-    if (ret == NULL) {
+    int sz = 0, len = strlen(s);
+    enum op_type *tok = (enum op_type *)malloc((len + 1) * sizeof tok[0]);
+    if (tok == NULL) {
         *pos = 0;
         *msg = "Insufficient memory [ENOMEM]";
-        free(ret);
-        return NULL;
+        free(tok);
+        return;
     }
 
     int i;
@@ -86,39 +86,21 @@ token_list tokenize(const char *s, int *pos, const char **msg)
         if (cur_op == OP_INVALID) {
             *pos = i;
             *msg = "Invalid character";
-            free(ret);
-            return NULL;
+            free(tok);
+            return;
         }
-        if (++sz == cap) {
-            cap >>= 1;
-            ret = (token_list)realloc(ret, cap * sizeof ret[0]);
-            if (ret == NULL) {
-                *pos = i;
-                *msg = "Insufficient memory [ENOMEM]";
-                free(ret);
-                return NULL;
-            }
-        }
-        ret[sz - 1] = cur_op;
+        tok[sz++] = cur_op;
     }
     if (sz == 0) {
         *pos = 0;
         *msg = "Empty expression";
-        free(ret);
-        return NULL;
+        free(tok);
+        return;
     }
-    ret[sz++] = OP_INVALID;
+    tok[sz++] = OP_INVALID;
     *pos = -1;
     *msg = "Success";
-    return ret;
-}
-
-token_list sfx_expr_build(token_list tokens)
-{
-}
-
-struct expr_tree_node *expr_tree_build(token_list sfx_expr)
-{
+    *tokens = tok;
 }
 
 int main()
@@ -130,13 +112,13 @@ int main()
 
     int err_pos;
     const char *err_msg;
+    int list_len;
 
-    token_list tokens = tokenize(s, &err_pos, &err_msg);
-    ensure_sane("Tokenizer", s, err_pos, err_msg);
+    enum op_type *tokens;
+    struct expr_tree_node *root;
+    tokenize(s, &err_pos, &err_msg, &tokens, &root);
+    ensure_sane(s, err_pos, err_msg);
     dump_tokens(stdout, tokens);
-
-    token_list sfx_expr = sfx_expr_build(tokens);
-    struct expr_tree_node *root = expr_tree_build(sfx_expr);
 
     return 0;
 }
