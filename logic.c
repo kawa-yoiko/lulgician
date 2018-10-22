@@ -230,12 +230,18 @@ int main()
     int rspace = (expr_str_len - 1) >> 1,
         lspace = (expr_str_len - 1) - rspace;
 
+    /* Special ones: T and F */
+    int special = (1 << ('T' - 'A')) | (1 << ('F' - 'A'));
+    var_mask &= ~special;
+    /* For later use in variable assignments */
+    special = (1 << ('T' - 'A'));
+
     int i, vars;
     for (i = 0; i < 26; ++i)
         if (var_mask & (1 << i)) printf("| %c ", 'A' + i);
     printf("| %s |\n", expr_str);
     for (vars = var_mask; ; vars = (vars - 1) & var_mask) {
-        _Bool result = expr_tree_eval(root, var_mask ^ vars);
+        _Bool result = expr_tree_eval(root, (var_mask ^ vars) | special);
         for (i = var_mask; i > 0; i -= (i & -i))
             printf("| %c ", !(vars & ((i & -i))) ? 'T' : 'F');
         putchar('|');
