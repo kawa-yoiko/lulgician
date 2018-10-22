@@ -127,11 +127,13 @@ void expr_parse(const char *s,
     int expr_len = strlen(s);
     /* The list of tokens */
     enum op_type *tok = (enum op_type *)malloc((expr_len + 1) * sizeof tok[0]);
-    /* The operator stack */
+    /* The operator stack, and their positions in the original expression */
     enum op_type *stk = (enum op_type *)malloc(expr_len * sizeof tok[0]);
-    /* The tree node stack */
+    int *stk_pos = (int *)malloc(expr_len * sizeof stk_pos[0]);
+    /* The tree node stack, and their positions in the original expression */
     struct expr_tree_node **sfx =
         (struct expr_tree_node **)malloc(expr_len * sizeof sfx[0]);
+    int *sfx_pos = (int *)malloc(expr_len * sizeof sfx_pos[0]);
     if (tok == NULL || stk == NULL || sfx == NULL) {
         *pos = 0;
         *msg = "Insufficient memory [ENOMEM]";
@@ -174,12 +176,13 @@ void expr_parse(const char *s,
             /* < for right associative operators; <= for left */
             while (stk_top > 0 && stk[stk_top - 1] < cur_op + !is_rightassoc) {
                 enum op_type last_op = stk[--stk_top];
+                int last_op_pos = stk_pos[stk_top];
                 int arity =
                     (last_op == OP_LBRACKET || last_op == OP_RBRACKET ? 0 :
                     (last_op == OP_NOT ? 1 : 2));
                 /* Pop `arity` subtrees and build a new tree node */
                 if (sfx_top < arity) {
-                    *pos = i;
+                    *pos = last_op_pos;
                     *msg = "Missing operand";
                     free(tok); free(stk); free(sfx);
                     return;
@@ -188,14 +191,15 @@ void expr_parse(const char *s,
                     expr_tree_node_create(last_op, NULL, NULL);
                 if (arity >= 2) u->rch = sfx[--sfx_top];
                 if (arity >= 1) u->lch = sfx[--sfx_top];
-                sfx[sfx_top++] = u;
+                sfx[sfx_top] = u;
+                sfx_pos[sfx_top++] = last_op_pos;
             }
         }
         /* Closing bracket needs another pop for the opening one */
         if (cur_op == OP_RBRACKET) {
             if (stk_top < 1 || stk[stk_top - 1] != OP_LBRACKET) {
                 *pos = i;
-                *msg = "Mismatching brackets";
+                *msg = "Unbalanced bracket";
                 free(tok); free(stk); free(sfx);
                 return;
             }
@@ -204,19 +208,27 @@ void expr_parse(const char *s,
 
         /* (2) Push when necessary */
         if ((cur_op >= OP_NOT && cur_op < OP_COUNT) || cur_op == OP_LBRACKET) {
-            stk[stk_top++] = cur_op;
+            stk[stk_top] = cur_op;
+            stk_pos[stk_top++] = i;
         } else if (is_var) {
-            sfx[sfx_top++] = expr_tree_node_create(cur_op, NULL, NULL);
+            sfx[sfx_top] = expr_tree_node_create(cur_op, NULL, NULL);
+            sfx_pos[sfx_top++] = i;
             vmask |= (1 << (cur_op - OP_VAR));
         }
 
         if (s[i] == '\0') break;
     }
 
-    if (tok_sz == 1) {
-        /* Exit if OP_INVALID is the only token */
-        *pos = 0;
+    if (sfx_top == 0) {
+        *pos = expr_len;
         *msg = "Empty expression";
+        free(tok); free(stk); free(sfx);
+        return;
+    }
+    if (sfx_top > 1 || sfx[0]->op == OP_LBRACKET) {
+        *pos = sfx_pos[1];
+        *msg = (sfx[0]->op == OP_LBRACKET ?
+            "Unbalanced bracket" : "Redundant elements");
         free(tok); free(stk); free(sfx);
         return;
     }
