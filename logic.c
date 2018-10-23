@@ -302,24 +302,46 @@ int main()
     /* For later use in variable assignments */
     special = (1 << ('T' - 'A'));
 
-    int i, vars;
+    int num_rows = 1 << __builtin_popcount(var_mask);
+    _Bool *results = (_Bool *)malloc(num_rows * sizeof results[0]);
+    if (results == NULL) {
+        fputs("Insufficient memory [ENOMEM]\n", stderr);
+        return 1;
+    }
+
+    int i, j, vars;
     for (i = 0; i < 26; ++i)
         if (var_mask & (1 << i)) printf("| %c ", 'A' + i);
     printf("| %s |\n", expr_str);
     /* Iterate through all subsets of `var_mask` */
-    for (vars = var_mask; ; vars = (vars - 1) & var_mask) {
+    for (i = 0, vars = var_mask; ; ++i, vars = (vars - 1) & var_mask) {
         /* As we're iterating `vars` from largest to smallest,
          * `var_mask ^ vars` goes from smallest to largest */
         _Bool result = expr_tree_eval(root, (var_mask ^ vars) | special);
-        for (i = var_mask; i > 0; i -= (i & -i))
-            printf("| %c ", !(vars & ((i & -i))) ? 'T' : 'F');
+        for (j = var_mask; j > 0; j -= (j & -j))
+            printf("| %c ", !(vars & ((j & -j))) ? 'T' : 'F');
         putchar('|');
-        for (i = 0; i <= lspace; ++i) putchar(' ');
+        for (j = 0; j <= lspace; ++j) putchar(' ');
         putchar(result ? 'T' : 'F');
-        for (i = 0; i <= rspace; ++i) putchar(' ');
+        for (j = 0; j <= rspace; ++j) putchar(' ');
         printf("|\n");
+
+        results[i] = result;
         if (vars == 0) break;
     }
+
+    _Bool first;
+    printf("CNF: ∧_{");
+    for (i = 0, first = 1; i < num_rows; ++i) if (!results[(num_rows - 1) ^ i]) {
+        if (first) first = 0; else printf(", ");
+        printf("%d", i);
+    }
+    printf("}\nDNF: ∨_{");
+    for (i = 0, first = 1; i < num_rows; ++i) if (results[i]) {
+        if (first) first = 0; else printf(", ");
+        printf("%d", i);
+    }
+    printf("}\n");
 
     return 0;
 }
