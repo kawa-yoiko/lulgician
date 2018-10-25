@@ -54,6 +54,12 @@ void ensure_sane(const char *input, int pos, const char *msg)
     }
 }
 
+void rtrim(char *s)
+{
+    char *t = s + strlen(s) - 1;
+    while (t >= s && isspace(*t)) *(t--) = '\0';
+}
+
 /*
  * For the sake of simplicity, this function assumes
  * that there is sufficient memory allocated at `s`.
@@ -376,6 +382,51 @@ int work_with_expr(_Bool digest_mode)
 
 int work_with_truthtable()
 {
+    int n;
+    scanf("%d", &n);
+    if (n <= 0 || n > 26) {
+        puts("Number of variables should fall between 1 and 26 (inclusive)");
+        return 1;
+    }
+    size_t sz = (sizeof(char) << n) + 2;
+    char *s = (char *)malloc(sz);
+    if (s == NULL) {
+        fputs("Insufficient memory [ENOMEM]\n", stderr);
+        return 1;
+    }
+
+    fgets(s, sz, stdin);    /* Read until the end of the first line */
+    fgets(s, sz, stdin);
+    rtrim(s);
+    if (strlen(s) != (1 << n)) {
+        printf("Incorrect length: expected %d, got %lu\n", 1 << n, strlen(s));
+        free(s);
+        return 1;
+    }
+
+    int i, j;
+    for (i = 0; i < (1 << n); ++i) if (s[i] != '0' && s[i] != '1') {
+        printf("%s\n", s);
+        for (; i > 0; --i) putchar(' ');
+        putchar('^');
+        printf("\nInvalid character\n");
+        free(s);
+        return 1;
+    }
+
+    _Bool first = 1;
+    for (i = 0; i < (1 << n); ++i) if (s[i] == '1') {
+        if (first) first = 0; else fputs(" | ", stdout);
+        fputc('(', stdout);
+        for (j = 0; j < n; ++j) {
+            if (j != 0) fputs(" & ", stdout);
+            if (!(i & (1 << (n - 1 - j)))) fputc('!', stdout);
+            fputc('A' + j, stdout);
+        }
+        fputc(')', stdout);
+    }
+    fputc('\n', stdout);
+
     return 0;
 }
 
