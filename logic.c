@@ -274,7 +274,7 @@ void expr_parse(const char *s,
     free(stk_pos); free(sfx_pos);
 }
 
-int main()
+int work_with_expr(_Bool digest_mode)
 {
     char s[EXPR_LEN_LIM];
     fgets(s, sizeof s, stdin);
@@ -313,38 +313,61 @@ int main()
     }
 
     int i, j, vars;
-    for (i = 0; i < 26; ++i)
-        if (varextract(var_mask, i)) printf("| %c ", 'A' + i);
-    printf("| %s |\n", expr_str);
+    if (!digest_mode) {
+        for (i = 0; i < 26; ++i)
+            if (varextract(var_mask, i)) printf("| %c ", 'A' + i);
+        printf("| %s |\n", expr_str);
+    }
     /* Iterate through all subsets of `var_mask` */
     for (i = 0, vars = var_mask; ; ++i, vars = (vars - 1) & var_mask) {
         /* As we're iterating `vars` from largest to smallest,
          * `var_mask ^ vars` goes from smallest to largest */
         _Bool result = expr_tree_eval(root, (var_mask ^ vars) | special);
-        for (j = var_mask; j > 0; j -= highbit(j))
-            printf("| %c ", !(vars & highbit(j)) ? 'T' : 'F');
-        putchar('|');
-        for (j = 0; j <= lspace; ++j) putchar(' ');
-        putchar(result ? 'T' : 'F');
-        for (j = 0; j <= rspace; ++j) putchar(' ');
-        printf("|\n");
+        if (!digest_mode) {
+            for (j = var_mask; j > 0; j -= highbit(j))
+                printf("| %c ", !(vars & highbit(j)) ? 'T' : 'F');
+            putchar('|');
+            for (j = 0; j <= lspace; ++j) putchar(' ');
+            putchar(result ? 'T' : 'F');
+            for (j = 0; j <= rspace; ++j) putchar(' ');
+            printf("|\n");
+        } else {
+            putchar(result ? '1' : '0');
+        }
 
         results[i] = result;
         if (vars == 0) break;
     }
 
-    _Bool first;
-    printf("CNF: ∧_{");
-    for (i = 0, first = 1; i < num_rows; ++i) if (!results[(num_rows - 1) ^ i]) {
-        if (first) first = 0; else printf(", ");
-        printf("%d", i);
+    if (!digest_mode) {
+        _Bool first;
+        printf("CNF: ∧_{");
+        for (i = 0, first = 1; i < num_rows; ++i) if (!results[(num_rows - 1) ^ i]) {
+            if (first) first = 0; else printf(", ");
+            printf("%d", i);
+        }
+        printf("}\nDNF: ∨_{");
+        for (i = 0, first = 1; i < num_rows; ++i) if (results[i]) {
+            if (first) first = 0; else printf(", ");
+            printf("%d", i);
+        }
+        printf("}\n");
     }
-    printf("}\nDNF: ∨_{");
-    for (i = 0, first = 1; i < num_rows; ++i) if (results[i]) {
-        if (first) first = 0; else printf(", ");
-        printf("%d", i);
-    }
-    printf("}\n");
 
     return 0;
+}
+
+int work_with_truthtable()
+{
+    return 0;
+}
+
+int main(int argc, char *argv[])
+{
+    if (argc >= 2 && strchr(argv[1], 't') != NULL) {
+        return work_with_truthtable();
+    } else {
+        _Bool digest_mode = (argc >= 2 && strchr(argv[1], 'd') != NULL);
+        return work_with_expr(digest_mode);
+    }
 }
