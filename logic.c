@@ -187,6 +187,13 @@ void expr_parse(const char *s,
             free(stk_pos); free(sfx_pos);
             return;
         }
+        if (following_var && cur_op == OP_NOT) {
+            *pos = i;
+            *msg = "The negate operator should be used before a variable";
+            free(tok); free(stk); free(sfx);
+            free(stk_pos); free(sfx_pos);
+            return;
+        }
         following_var = (cur_op >= OP_VAR && cur_op < OP_VAR_END);
         following_lbracket = (cur_op == OP_LBRACKET);
 
@@ -206,6 +213,7 @@ void expr_parse(const char *s,
                     *pos = last_op_pos;
                     *msg = "Unexpected or unbalanced bracket";
                     free(tok); free(stk); free(sfx);
+                    free(stk_pos); free(sfx_pos);
                     return;
                 }
                 int arity =
