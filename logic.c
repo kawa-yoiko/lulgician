@@ -289,7 +289,12 @@ int work_with_expr(_Bool digest_mode)
     int var_mask;
 
     expr_parse(s, &err_pos, &err_msg, &tokens, &root, &var_mask);
-    ensure_sane(s, err_pos, err_msg);
+    if (!digest_mode) {
+        ensure_sane(s, err_pos, err_msg);
+    } else if (err_pos != -1) {
+        puts("E");
+        return 1;
+    }
 
     char *expr_str = (char *)malloc(len * 4);
     if (expr_str == NULL) {
@@ -353,6 +358,8 @@ int work_with_expr(_Bool digest_mode)
             printf("%d", i);
         }
         printf("}\n");
+    } else {
+        putchar('\n');
     }
 
     return 0;
