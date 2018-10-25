@@ -384,8 +384,8 @@ int work_with_truthtable()
 {
     int n;
     scanf("%d", &n);
-    if (n <= 0 || n > 26) {
-        puts("Number of variables should fall between 1 and 26 (inclusive)");
+    if (n <= 0 || n > 24) {
+        puts("Number of variables should fall between 1 and 24 (inclusive)");
         return 1;
     }
     size_t sz = (sizeof(char) << n) + 2;
@@ -421,9 +421,17 @@ int work_with_truthtable()
         for (j = 0; j < n; ++j) {
             if (j != 0) fputs(" & ", stdout);
             if (!(i & (1 << (n - 1 - j)))) fputc('!', stdout);
-            fputc('A' + j, stdout);
+            fputc('A' + j + (j >= 'F' - 'A') + (j >= 'T' - 'A' - 1), stdout);
         }
         fputc(')', stdout);
+    }
+
+    if (first) {
+        for (i = 0; i < n; ++i) {
+            fputc('A' + i + (i >= 'F' - 'A') + (i >= 'T' - 'A' - 1), stdout);
+            fputs(" & ", stdout);
+        }
+        fputc('F', stdout);
     }
     fputc('\n', stdout);
 
