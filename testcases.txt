@@ -51,6 +51,14 @@ E
 E
 a!&!a
 E
+(a)!
+E
+a&!
+E
+(a))
+E
+((!)a)
+E
 ######
 # Parser
 ######
@@ -62,12 +70,16 @@ F
 0
 T^F
 0
+((((((((((((((((((((a))))))))))))))))))))
+01
 a&A
 01
 a&T
 01
 a|t
 11
+a^c^!c
+1010
 a&b&c
 00000001
 a^b^c
@@ -82,8 +94,28 @@ a|b^c^d
 00010101
 r^p&q
 10101011
+s^a~x
+01100101
+s~a^x
+00111001
+# The commented lines can be pasted at
+# http://web.stanford.edu/class/cs103/tools/truth-table-tool/
+# in order to verify the results
+# Brackets may be added in these lines to cater to the online tool
 # (((p->k)&&u)||((T&&h)->!u))<->h
 ((p^k)&u|(t&h^!!!u))~h
 0000000011101111
+# a<->(b<->((c<->d)<->((b<->d)<->a)))
+a~(b~((c~d)~((b~d)~a)))
+0011001100110011
+# ((b||(d&&c||b))->(c&&(a||(b<->d)||c->b)))
+((b|(d&c|b))^(c&(a|(b~d)|c^b)))
+1110001111100011
+# (u&&r->p)&&(x&&(c->r))||((p||r)&&u)
+(u&r^p)&(x&(c^r))|((p|r)&u)
+01010111011101110000011100110111
+# (u->p)||(z->q||a)&&(a&&q&&r)
+(u^p)|(z^q|a)&(a&q&r)
+1100110011001100111111111111111111001100110011111111111111111111
 (i&j&k)^(q|r&s)
 1111111111111111111111111111111111111111111111111111111100011111

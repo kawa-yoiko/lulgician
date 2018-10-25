@@ -147,7 +147,7 @@ void expr_parse(const char *s,
 
     int tok_sz = 0, stk_top = 0, sfx_top = 0, vmask = 0;
     int i;
-    _Bool following_var = 0, following_lbracket = 0;
+    _Bool following_var = 0, following_lbracket = 0, following_rbracket = 0;
 
     for (i = 0; ; ++i) if (s[i] == '\0' || !isspace(s[i])) {
         /* Parse current token */
@@ -187,7 +187,7 @@ void expr_parse(const char *s,
             free(stk_pos); free(sfx_pos);
             return;
         }
-        if (following_var && cur_op == OP_NOT) {
+        if ((following_var || following_rbracket) && cur_op == OP_NOT) {
             *pos = i;
             *msg = "The negate operator should be used before a variable";
             free(tok); free(stk); free(sfx);
@@ -196,6 +196,7 @@ void expr_parse(const char *s,
         }
         following_var = (cur_op >= OP_VAR && cur_op < OP_VAR_END);
         following_lbracket = (cur_op == OP_LBRACKET);
+        following_rbracket = (cur_op == OP_RBRACKET);
 
         /* Manipulate the stack */
         _Bool is_var = (cur_op >= OP_VAR && cur_op < OP_VAR_END);
