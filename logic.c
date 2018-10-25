@@ -4,6 +4,7 @@
 #include <string.h>
 
 #define EXPR_LEN_LIM    1024
+#define highbit(__x) (1 << (8 * sizeof (__x) - __builtin_clz(__x) - 1))
 
 enum op_type {
     OP_NOT = 0,
@@ -100,7 +101,7 @@ _Bool expr_tree_eval(struct expr_tree_node *u, int vars)
         return expr_tree_eval(u->lch, vars) == expr_tree_eval(u->rch, vars);
     default:
         if (u->op >= OP_VAR && u->op < OP_VAR_END) {
-            return (vars >> (u->op - OP_VAR)) & 1;
+            return (vars >> (25 - (u->op - OP_VAR))) & 1;
         } else {
             return 0;
         }
@@ -242,7 +243,7 @@ void expr_parse(const char *s,
         } else if (is_var) {
             sfx[sfx_top] = expr_tree_node_create(cur_op, NULL, NULL);
             sfx_pos[sfx_top++] = i;
-            vmask |= (1 << (cur_op - OP_VAR));
+            vmask |= (1 << (25 - cur_op + OP_VAR));
         }
 
         if (s[i] == '\0') break;
@@ -297,10 +298,10 @@ int main()
         lspace = (expr_str_len - 1) - rspace;
 
     /* Special ones: T and F */
-    int special = (1 << ('T' - 'A')) | (1 << ('F' - 'A'));
+    int special = (1 << (25 - 'T' + 'A')) | (1 << (25 - 'F' + 'A'));
     var_mask &= ~special;
     /* For later use in variable assignments */
-    special = (1 << ('T' - 'A'));
+    special = (1 << (25 - 'T' + 'A'));
 
     int num_rows = 1 << __builtin_popcount(var_mask);
     _Bool *results = (_Bool *)malloc(num_rows * sizeof results[0]);
@@ -311,15 +312,15 @@ int main()
 
     int i, j, vars;
     for (i = 0; i < 26; ++i)
-        if (var_mask & (1 << i)) printf("| %c ", 'A' + i);
+        if (var_mask & (1 << (25 - i))) printf("| %c ", 'A' + i);
     printf("| %s |\n", expr_str);
     /* Iterate through all subsets of `var_mask` */
     for (i = 0, vars = var_mask; ; ++i, vars = (vars - 1) & var_mask) {
         /* As we're iterating `vars` from largest to smallest,
          * `var_mask ^ vars` goes from smallest to largest */
         _Bool result = expr_tree_eval(root, (var_mask ^ vars) | special);
-        for (j = var_mask; j > 0; j -= (j & -j))
-            printf("| %c ", !(vars & ((j & -j))) ? 'T' : 'F');
+        for (j = var_mask; j > 0; j -= highbit(j))
+            printf("| %c ", !(vars & highbit(j)) ? 'T' : 'F');
         putchar('|');
         for (j = 0; j <= lspace; ++j) putchar(' ');
         putchar(result ? 'T' : 'F');
