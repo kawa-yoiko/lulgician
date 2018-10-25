@@ -4,7 +4,9 @@
 #include <string.h>
 
 #define EXPR_LEN_LIM    1024
-#define highbit(__x) (1 << (8 * sizeof (__x) - __builtin_clz(__x) - 1))
+#define highbit(__x)    (1 << (8 * sizeof (__x) - __builtin_clz(__x) - 1))
+#define varmask(__v)    (1 << (25 - (__v)))
+#define varextract(__m, __v)    (((__m) >> (25 - (__v))) & 1)
 
 enum op_type {
     OP_NOT = 0,
@@ -101,7 +103,7 @@ _Bool expr_tree_eval(struct expr_tree_node *u, int vars)
         return expr_tree_eval(u->lch, vars) == expr_tree_eval(u->rch, vars);
     default:
         if (u->op >= OP_VAR && u->op < OP_VAR_END) {
-            return (vars >> (25 - (u->op - OP_VAR))) & 1;
+            return varextract(vars, u->op - OP_VAR);
         } else {
             return 0;
         }
@@ -243,7 +245,7 @@ void expr_parse(const char *s,
         } else if (is_var) {
             sfx[sfx_top] = expr_tree_node_create(cur_op, NULL, NULL);
             sfx_pos[sfx_top++] = i;
-            vmask |= (1 << (25 - cur_op + OP_VAR));
+            vmask |= varmask(cur_op - OP_VAR);
         }
 
         if (s[i] == '\0') break;
@@ -298,10 +300,10 @@ int main()
         lspace = (expr_str_len - 1) - rspace;
 
     /* Special ones: T and F */
-    int special = (1 << (25 - 'T' + 'A')) | (1 << (25 - 'F' + 'A'));
+    int special = varmask('T' - 'A') | varmask('F' - 'A');
     var_mask &= ~special;
     /* For later use in variable assignments */
-    special = (1 << (25 - 'T' + 'A'));
+    special = varmask('T' - 'A');
 
     int num_rows = 1 << __builtin_popcount(var_mask);
     _Bool *results = (_Bool *)malloc(num_rows * sizeof results[0]);
@@ -312,7 +314,7 @@ int main()
 
     int i, j, vars;
     for (i = 0; i < 26; ++i)
-        if (var_mask & (1 << (25 - i))) printf("| %c ", 'A' + i);
+        if (varextract(var_mask, i)) printf("| %c ", 'A' + i);
     printf("| %s |\n", expr_str);
     /* Iterate through all subsets of `var_mask` */
     for (i = 0, vars = var_mask; ; ++i, vars = (vars - 1) & var_mask) {
