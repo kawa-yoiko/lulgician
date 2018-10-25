@@ -80,6 +80,7 @@ int dump_tokens(char *s, enum op_type *list)
             }
             ++w;
     }
+    *s = '\0';
     return w;
 }
 
