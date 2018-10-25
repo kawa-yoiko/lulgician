@@ -1,11 +1,13 @@
-Manual
-======
+lulgician Manual
+================
+
+lulgician is a little utility that handles Discrete Linguistics stuff.
 
 ### Building
 
 Building the main program:
 
-`gcc logic.c -O2 -o logic`
+`gcc lulgician.c -O2 -o lulgician`
 
 Building the test suite:
 
